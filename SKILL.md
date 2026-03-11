@@ -37,7 +37,8 @@ Also use it when the user clearly wants:
    - PDF snapshot
    - Markdown note
    - Selected local images in `note.assets/`
-4. Save into Obsidian first. If the user also wants NotebookLM, mirror the generated files into a NotebookLM-ready directory.
+4. Save `PDF + Markdown + assets` together in the same Obsidian directory by default.
+5. If the user also wants NotebookLM, mirror the generated files into a NotebookLM-ready directory.
 
 ## Image policy
 
@@ -51,8 +52,8 @@ Also use it when the user clearly wants:
 The script writes:
 
 - `YYYY-MM-DD-title.md`
+- `YYYY-MM-DD-title.pdf`
 - `YYYY-MM-DD-title.assets/`
-- `YYYY-MM-DD-title.pdf` when PDF capture succeeds
 
 The Markdown note includes source URL, capture date, 正文, and local image embeds.
 

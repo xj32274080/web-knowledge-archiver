@@ -21,7 +21,8 @@ npx skills add xj32274080/web-knowledge-archiver
 - Supports two image modes
   - `curated`: keep likely important content images only
   - `all`: keep every detected article image
-- Saves into Obsidian first and can mirror to a NotebookLM-ready import folder
+- Saves `PDF + Markdown + assets` together in the same Obsidian directory by default
+- Can mirror the archive into a NotebookLM-ready import folder
 
 ## 中文说明
 
@@ -31,6 +32,7 @@ npx skills add xj32274080/web-knowledge-archiver
 - 图片默认下载到本地，不依赖容易失效的热链
 - 默认使用“精选图片”模式，只保留更像正文内容图的图片
 - 也支持“全部图片”模式，保留正文区域检测到的全部图片
+- 生成的 `PDF / Markdown / assets` 默认放在同一个 Obsidian 文件夹里，打开更顺手
 
 ## Main command
 
@@ -63,8 +65,8 @@ python scripts/archive_url.py "https://example.com" --notebooklm-root "%USERPROF
 The skill writes:
 
 - `YYYY-MM-DD-title.md`
-- `YYYY-MM-DD-title.assets/`
 - `YYYY-MM-DD-title.pdf`
+- `YYYY-MM-DD-title.assets/`
 
 Typical structure:
 
@@ -72,6 +74,7 @@ Typical structure:
 学习资料/
   网页归档/
     2026-03-11-文章标题.md
+    2026-03-11-文章标题.pdf
     2026-03-11-文章标题.assets/
       image-01.png
       image-02.jpg

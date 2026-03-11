@@ -5,7 +5,7 @@ Archive a URL into PDF + cleaned Markdown + selected local images.
 Supports:
 - Generic webpages via Jina Reader with HTML/browser fallback
 - WeChat public articles via Scrapling + html2text
-- Obsidian-friendly output (`note.md` + `note.assets/`)
+- Obsidian-friendly output (`note.md` + `note.pdf` + `note.assets/`)
 - Optional NotebookLM-ready mirror directory
 """
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import re
+import shutil
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
@@ -34,7 +34,6 @@ PLAYWRIGHT_CHROME = Path(
 DEFAULT_OBSIDIAN_ROOT = Path(r"D:\codex-work\myproject\Daxuan-study-system")
 DEFAULT_OBSIDIAN_SUBDIR = Path("学习资料") / "网页归档"
 DEFAULT_NOTEBOOKLM_ROOT = Path.home() / "Documents" / "NotebookLM Imports"
-DEFAULT_WORKDIR = Path.home() / ".agent-reach" / "archives"
 REQUEST_HEADERS = {"User-Agent": "Mozilla/5.0"}
 JINA_PREFIX = "https://r.jina.ai/http://"
 WECHAT_HOST = "mp.weixin.qq.com"
@@ -219,8 +218,7 @@ def download_image(url: str, destination: Path) -> bool:
         content_type = response.headers.get("content-type", "").split(";", 1)[0]
         if "image" not in content_type:
             return False
-        suffix = infer_extension(url, content_type)
-        final_destination = destination.with_suffix(suffix)
+        final_destination = destination.with_suffix(infer_extension(url, content_type))
         final_destination.write_bytes(response.content)
         return True
     except Exception:
@@ -298,17 +296,12 @@ def extract_content(url: str) -> ExtractionResult:
 
 def write_note(
     result: ExtractionResult,
-    obsidian_root: Path,
+    obsidian_dir: Path,
+    note_name: str,
     notebooklm_root: Path | None,
-    subdir: Path,
     pdf_path: Path | None,
     image_mode: str,
 ) -> dict:
-    date_prefix = datetime.now().strftime("%Y-%m-%d")
-    title_slug = slugify(result.title)
-    note_name = f"{date_prefix}-{title_slug}"
-
-    obsidian_dir = ensure_dir(obsidian_root / subdir)
     note_path = obsidian_dir / f"{note_name}.md"
     assets_dir = ensure_dir(obsidian_dir / f"{note_name}.assets")
 
@@ -368,17 +361,18 @@ def write_note(
     if notebooklm_root:
         nlm_dir = ensure_dir(notebooklm_root / note_name)
         shutil.copy2(note_path, nlm_dir / note_path.name)
+        if pdf_path and pdf_path.exists():
+            shutil.copy2(pdf_path, nlm_dir / pdf_path.name)
         if assets_dir.exists():
             target_assets = nlm_dir / assets_dir.name
             if target_assets.exists():
                 shutil.rmtree(target_assets)
             shutil.copytree(assets_dir, target_assets)
-        if pdf_path and pdf_path.exists():
-            shutil.copy2(pdf_path, nlm_dir / pdf_path.name)
         notebooklm_path = nlm_dir
 
     return {
         "note_path": str(note_path),
+        "pdf_path": str(pdf_path) if pdf_path and pdf_path.exists() else "",
         "assets_dir": str(assets_dir),
         "saved_images": [str(path) for _, path in local_refs],
         "notebooklm_path": str(notebooklm_path) if notebooklm_path else "",
@@ -391,7 +385,6 @@ def main() -> int:
     parser.add_argument("--obsidian-root", default=str(DEFAULT_OBSIDIAN_ROOT))
     parser.add_argument("--obsidian-subdir", default=str(DEFAULT_OBSIDIAN_SUBDIR))
     parser.add_argument("--notebooklm-root", default="")
-    parser.add_argument("--workdir", default=str(DEFAULT_WORKDIR))
     parser.add_argument(
         "--image-mode",
         choices=["curated", "all"],
@@ -400,19 +393,19 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    workdir = ensure_dir(Path(args.workdir))
     notebooklm_root = Path(args.notebooklm_root) if args.notebooklm_root else None
-
     result = extract_content(args.url)
-    note_stub = f"{datetime.now().strftime('%Y-%m-%d')}-{slugify(result.title)}"
-    pdf_path = workdir / f"{note_stub}.pdf"
+
+    note_name = f"{datetime.now().strftime('%Y-%m-%d')}-{slugify(result.title)}"
+    obsidian_dir = ensure_dir(Path(args.obsidian_root) / Path(args.obsidian_subdir))
+    pdf_path = obsidian_dir / f"{note_name}.pdf"
     pdf_ok = save_pdf(result.final_url, pdf_path)
 
     saved = write_note(
         result=result,
-        obsidian_root=Path(args.obsidian_root),
+        obsidian_dir=obsidian_dir,
+        note_name=note_name,
         notebooklm_root=notebooklm_root,
-        subdir=Path(args.obsidian_subdir),
         pdf_path=pdf_path if pdf_ok else None,
         image_mode=args.image_mode,
     )
@@ -421,7 +414,6 @@ def main() -> int:
         "title": result.title,
         "url": result.final_url,
         "method": result.source_method,
-        "pdf_path": str(pdf_path) if pdf_ok else "",
         **saved,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
